@@ -38,7 +38,7 @@ public class LoadFileData
 	{
 		try {
 			CPlayer cp = cc.getPlayerData();
-			FileWriter fileWriter = new FileWriter(path + "inventories\\" + name + "-" + cc.getCharNum() + ".dat");
+			FileWriter fileWriter = new FileWriter(path + "inventories" + File.separator + name + "-" + cc.getCharNum() + ".dat");
 			BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
 			int i = 0, i2 = 0;
 			boolean b = false;
@@ -245,7 +245,7 @@ public class LoadFileData
 	{
 		try {
 			CPlayer cp = cc.getPlayerData();
-			FileWriter fileWriter = new FileWriter(path + "playerdata\\" + name + "-" + cc.getCharNum() + ".dat");
+			FileWriter fileWriter = new FileWriter(path + "playerdata" + File.separator + name + "-" + cc.getCharNum() + ".dat");
 			BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
 			bufferedWriter.write(cp.getUUID().toString());
 			bufferedWriter.newLine();
@@ -295,10 +295,10 @@ public class LoadFileData
 	public ArrayList<CCharacter> loadAccountData(UUID uuid, String path)
 	{
 		ArrayList<CCharacter> list = new ArrayList<CCharacter>();
-		if(new File(path + "playerdata\\" + uuid.toString() + "-1.dat").exists() && new File(path + "inventories\\" + uuid.toString() + "-1.dat").exists())
+		if(new File(path + "playerdata" + File.separator + uuid.toString() + "-1.dat").exists() && new File(path + "inventories" + File.separator + uuid.toString() + "-1.dat").exists())
 		{
 			int i = 1;
-			while(new File(path + "playerdata\\" + uuid.toString() + "-" + i + ".dat").exists() && new File(path + "inventories\\" + uuid.toString() + "-" + i + ".dat").exists())
+			while(new File(path + "playerdata" + File.separator + uuid.toString() + "-" + i + ".dat").exists() && new File(path + "inventories" + File.separator + uuid.toString() + "-" + i + ".dat").exists())
 			{
 				CPlayer cp = loadPlayerData(uuid, path, i);
 				ArrayList<CItem> itemList = loadPlayerInventory(uuid, path, i);
@@ -316,7 +316,7 @@ public class LoadFileData
 	{
 		ArrayList<CItem> list2 = new ArrayList<CItem>();
 		try {
-			FileReader fileReader = new FileReader(path + "inventories\\" + uuid.toString() + "-" + i + ".dat");
+			FileReader fileReader = new FileReader(path + "inventories" + File.separator + uuid.toString() + "-" + i + ".dat");
 			BufferedReader bufferedReader = new BufferedReader(fileReader);
 			String s = "";
 			CItem ci = items.getItems().get(0).makeCopy();
@@ -354,7 +354,7 @@ public class LoadFileData
 	{
 		ArrayList<CItem> list1 = new ArrayList<CItem>(); 
 		try {
-			FileReader fileReader = new FileReader(path + "inventories\\" + uuid.toString() + "-" + i + ".dat");
+			FileReader fileReader = new FileReader(path + "inventories" + File.separator + uuid.toString() + "-" + i + ".dat");
 			BufferedReader bufferedReader = new BufferedReader(fileReader);
 			String s = "";
 			CItem ci = items.getItems().get(0).makeCopy();
@@ -390,7 +390,7 @@ public class LoadFileData
 		double[] coords = new double[3];
 		CPlayer cp = players.new CPlayer(uuid);
 		try {
-			FileReader fileReader = new FileReader(path + "playerdata\\" + uuid.toString() + "-" + i + ".dat");
+			FileReader fileReader = new FileReader(path + "playerdata" + File.separator + uuid.toString() + "-" + i + ".dat");
 			BufferedReader bufferedReader = new BufferedReader(fileReader);
 			/*String s;
 			if((s = bufferedReader.readLine()).equals(""))
@@ -409,7 +409,8 @@ public class LoadFileData
 			cp.setCredits(Integer.valueOf(bufferedReader.readLine()));
 			cp.setXPLevel(Integer.valueOf(bufferedReader.readLine()), Integer.valueOf(bufferedReader.readLine()));
 			cp.setHealth(Integer.valueOf(bufferedReader.readLine()));
-			cp.setMaxHealth(Integer.valueOf(bufferedReader.readLine()));
+			cp.setMaxHealth();
+			bufferedReader.readLine();
 			//Stats
 			cp.setStatPoints(Integer.valueOf(bufferedReader.readLine()));
 			cp.setStrength(Integer.valueOf(bufferedReader.readLine()));
@@ -432,7 +433,7 @@ public class LoadFileData
 	{
 		double[] coords = new double[3];
 		try {
-			FileReader fileReader = new FileReader(path + "playerdata\\" + uuid.toString() + "-" + i + ".dat");
+			FileReader fileReader = new FileReader(path + "playerdata" + File.separator + uuid.toString() + "-" + i + ".dat");
 			BufferedReader bufferedReader = new BufferedReader(fileReader);
 			bufferedReader.readLine();
 			coords[0] = Double.valueOf(bufferedReader.readLine());

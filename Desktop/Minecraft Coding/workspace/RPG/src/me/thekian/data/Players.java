@@ -11,6 +11,8 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import me.thekian.items.CItem;
+import me.thekian.magic.Ability;
+
 import org.bukkit.Material;
 
 public class Players 
@@ -67,51 +69,59 @@ public class Players
 		public void loadData(Player p, CPlayer cp)
 		{
 			System.out.println("?-2");
-			cp.setMaxHealth(playerDat.getMaxHealth());
-			cp.setHealth(playerDat.getHealth());
 			cp.setCredits(playerDat.getCredits());
 			cp.setUUID(playerDat.getUUID());
 			cp.setClass(playerDat.getPlayerClass());
 			cp.setRace(playerDat.getRace());
 			cp.setXPLevel(playerDat.getLevel(), playerDat.getXP());
+			cp.setMaxHealth();
+			cp.setHealth(playerDat.getHealth());
 			p.getInventory().setArmorContents(null);
 			p.getInventory().clear();
 			new BukkitRunnable(){
 				
 				public void run()
 				{
-					if(armor.get(0).getItem() != null)
-						if(!armor.get(0).getItem().getType().equals(Material.AIR))
-							p.getInventory().setBoots(armor.get(0).makeCopy().getItem());
-					if(armor.get(1).getItem() != null)
-						if(!armor.get(1).getItem().getType().equals(Material.AIR))
-							p.getInventory().setLeggings(armor.get(1).makeCopy().getItem());
-					if(armor.get(2).getItem() != null)
-						if(!armor.get(2).getItem().getType().equals(Material.AIR))
-							p.getInventory().setChestplate(armor.get(2).makeCopy().getItem());
-					if(armor.get(3).getItem() != null)
-						if(!armor.get(3).getItem().getType().equals(Material.AIR))
-							p.getInventory().setHelmet(armor.get(3).makeCopy().getItem());
+					if(armor.get(0).getItem(false) != null)
+						if(!armor.get(0).getItem(false).getType().equals(Material.AIR))
+							p.getInventory().setBoots(armor.get(0).makeCopy().getItem(false));
+					if(armor.get(1).getItem(false) != null)
+						if(!armor.get(1).getItem(false).getType().equals(Material.AIR))
+							p.getInventory().setLeggings(armor.get(1).makeCopy().getItem(false));
+					if(armor.get(2).getItem(false) != null)
+						if(!armor.get(2).getItem(false).getType().equals(Material.AIR))
+							p.getInventory().setChestplate(armor.get(2).makeCopy().getItem(false));
+					if(armor.get(3).getItem(false) != null)
+						if(!armor.get(3).getItem(false).getType().equals(Material.AIR))
+							p.getInventory().setHelmet(armor.get(3).makeCopy().getItem(false));
 					for(int i = 0; i < 36; i++)
 					{
-						if(items.get(i).getItem() != null)
-								p.getInventory().setItem(i, items.get(i).makeCopy().getItem());
+						if(items.get(i).getItem(false) != null)
+								p.getInventory().setItem(i, items.get(i).makeCopy().getItem(false));
 					}
 				}
 			}.run();
-			Location loc = new Location(p.getWorld(), coords[0], coords[1], coords[2]);
-			p.teleport(loc);
+			System.out.println("Debug 1");
+			new BukkitRunnable(){
+				
+				public void run()
+				{
+					System.out.println("Debug 2");
+					p.teleport(new Location(p.getWorld(), coords[0], coords[1], coords[2]));
+				}
+			
+			}.run();
 		}
 		
 		public void loadData(Player p, CPlayer cp, Plugin plugin)
 		{
-			cp.setMaxHealth(playerDat.getMaxHealth());
-			cp.setHealth(playerDat.getHealth());
 			cp.setCredits(playerDat.getCredits());
 			cp.setUUID(playerDat.getUUID());
 			cp.setClass(playerDat.getPlayerClass());
 			cp.setRace(playerDat.getRace());
 			cp.setXPLevel(playerDat.getLevel(), playerDat.getXP());
+			cp.setMaxHealth();
+			cp.setHealth(playerDat.getHealth());
 			p.getInventory().setArmorContents(null);
 			p.getInventory().clear();
 			final Player player = p; 
@@ -119,24 +129,24 @@ public class Players
 				
 				public void run()
 				{
-					if(armor.get(0).getItem() != null)
-						if(!armor.get(0).getItem().getType().equals(Material.AIR))
-							player.getInventory().setBoots(armor.get(0).makeCopy().getItem());
-					if(armor.get(1).getItem() != null)
-						if(!armor.get(1).getItem().getType().equals(Material.AIR))
-							player.getInventory().setLeggings(armor.get(1).makeCopy().getItem());
-					if(armor.get(2).getItem() != null)
-						if(!armor.get(2).getItem().getType().equals(Material.AIR))
-							player.getInventory().setChestplate(armor.get(2).makeCopy().getItem());
-					if(armor.get(3).getItem() != null)
-						if(!armor.get(3).getItem().getType().equals(Material.AIR))
-							player.getInventory().setHelmet(armor.get(3).makeCopy().getItem());
+					if(armor.get(0).getItem(false) != null)
+						if(!armor.get(0).getItem(false).getType().equals(Material.AIR))
+							player.getInventory().setBoots(armor.get(0).makeCopy().getItem(false));
+					if(armor.get(1).getItem(false) != null)
+						if(!armor.get(1).getItem(false).getType().equals(Material.AIR))
+							player.getInventory().setLeggings(armor.get(1).makeCopy().getItem(false));
+					if(armor.get(2).getItem(false) != null)
+						if(!armor.get(2).getItem(false).getType().equals(Material.AIR))
+							player.getInventory().setChestplate(armor.get(2).makeCopy().getItem(false));
+					if(armor.get(3).getItem(false) != null)
+						if(!armor.get(3).getItem(false).getType().equals(Material.AIR))
+							player.getInventory().setHelmet(armor.get(3).makeCopy().getItem(false));
 					for(int i = 0; i < 36; i++)
 					{
-						if(items.get(i).getItem() != null)
-								player.getInventory().setItem(i, items.get(i).makeCopy().getItem());
+						if(items.get(i).getItem(false) != null)
+								player.getInventory().setItem(i, items.get(i).makeCopy().getItem(false));
 					}
-					System.out.println(coords[0] + " " + coords[1] + " " + coords[2]);
+					//System.out.println(coords[0] + " " + coords[1] + " " + coords[2]);
 					Location loc = new Location(player.getWorld(), coords[0], coords[1], coords[2]);
 					player.teleport(loc);
 				}
@@ -179,9 +189,12 @@ public class Players
 		private UUID uuid;
 		private PlayerClass playerClass;
 		private Race race;
-		private int health, maxHealth, xp, level, xproof, credits, statpoints;
+		private int health, maxHealth, xp, level, xproof, credits, statpoints, cooldown;
 		//Stats
 		private int luck, logic, strength, agility, intelligence, vitality;
+		private Ability ability;
+		private EnumLang language;
+		private double damage;
 		
 		public CPlayer(UUID uniqueID)
 		{
@@ -196,10 +209,12 @@ public class Players
 			maxHealth = 10;
 			xp = 0;
 			level = 1;
-			xproof = 100;
+			xproof = 1000;
 			playerClass = PlayerClass.FIGHTER;
 			credits = 100;
 			race = Race.HUMAN;
+			cooldown = 0;
+			ability = null;
 		}
 		
 		private void LevelUp()
@@ -212,7 +227,7 @@ public class Players
 				statpoints += 2;
 			}
 			level = level + 1;
-			xproof = (int) (level * (200 * Math.pow(1.2, level - 1)) + (1000 * Math.pow(1.2, level - 6)));
+			xproof = 1000 * level;
 			if(xp >= xproof)
 			{
 				LevelUp();
@@ -221,62 +236,31 @@ public class Players
 			{
 				Bukkit.getPlayer(uuid).sendMessage(ChatColor.BLUE + "RPG> " + ChatColor.GRAY + "You have leveled up!");
 			}
-			if(playerClass.equals(PlayerClass.FIGHTER) || playerClass.equals(PlayerClass.MARINE))
-			{
-				if(race.equals(Race.COW))
-				{
-					maxHealth = maxHealth + 12;
-					health = health + 12;
-				} else
-				{
-					maxHealth = maxHealth + 10;
-					health = health + 10;
-				}
-			}
-			if(playerClass.equals(PlayerClass.TINKERER) || playerClass.equals(PlayerClass.ENGINEER) || playerClass.equals(PlayerClass.SNIPER) || playerClass.equals(PlayerClass.RANGER))
-			{
-				if(race.equals(Race.COW))
-				{
-					maxHealth = maxHealth + 10;
-					health = health + 10;
-				} else
-				{
-					maxHealth = maxHealth + 8;
-					health = health + 8;
-				}
-			}
-			if(playerClass.equals(PlayerClass.MAGICIAN) || playerClass.equals(PlayerClass.TECHNOMANCER))
-			{
-				if(race.equals(Race.COW))
-				{
-					maxHealth = maxHealth + 8;
-					health = health + 8;
-				} else
-				{
-					maxHealth = maxHealth + 6;
-					health = health + 6;
-				}
-			}
+			setMaxHealth();
 		}
 		
-		public void AddXP(int i)
+		public String AddXP(int exp, int lvl)
 		{
-			int i2 = i;
+			int i2 = exp;
 			if(i2 < 0)
 			{
 				i2 = 0;
 			}
-			/*if(race.equals(Race.HUMAN))
-			{
-				double d = i2;
-				d *= 1.02;
-				i2 = (int) d;
-			}*/
-			xp = xp + i2;
+			if(level / 2 >= lvl || level - 10 > lvl)
+				i2 = 0;
+			else if((double) lvl >= (double) level * 1.5D)
+				i2 = (int) ((double) i2 * 1.5);
+			else
+				i2 = (int) (i2 / ((double) level / (double) lvl));
+			xp += i2;
 			if(xp >= xproof)
 			{
 				LevelUp();
 			}
+			if(exp <= 0)
+				return ChatColor.BLUE + "RPG> " + ChatColor.GRAY + "You did not get any XP.";
+			else
+				return ChatColor.BLUE + "RPG> " + ChatColor.GRAY + "You got " + i2 + " XP.";
 		}
 		
 		public void setClass(PlayerClass pc)
@@ -291,7 +275,10 @@ public class Players
 		
 		public void setHealth(int i)
 		{
-			health = i;
+			if(i > maxHealth)
+				health = maxHealth;
+			else
+				health = i;
 		}
 		
 		public int getHealth()
@@ -309,9 +296,18 @@ public class Players
 			return uuid;
 		}
 		
-		public void setMaxHealth(int i)
+		public void setMaxHealth()
 		{
-			maxHealth = i;
+			int i = 0;
+			if(playerClass.equals(PlayerClass.FIGHTER) || playerClass.equals(PlayerClass.MARINE))
+				i = 10;
+			else if(playerClass.equals(PlayerClass.TINKERER) || playerClass.equals(PlayerClass.RANGER) || playerClass.equals(PlayerClass.ENGINEER) || playerClass.equals(PlayerClass.SNIPER))
+				i = 8;
+			else if(playerClass.equals(PlayerClass.MAGICIAN) || playerClass.equals(PlayerClass.TECHNOMANCER))
+				i = 6;
+			if(race.equals(Race.COW))
+				i += 2;
+			maxHealth = i * level + vitality * 2;
 		}
 		
 		public int getMaxHealth()
@@ -348,7 +344,7 @@ public class Players
 		{
 			xp = x;
 			level = l;
-			xproof = (int) (l * (200 * Math.pow(1.2, l - 1)) + (1000 * Math.pow(1.2, l - 6)));
+			xproof = l * 1000;
 		}
 		
 		public Race getRace()
@@ -424,13 +420,33 @@ public class Players
 		public void changeVitality(int i)
 		{
 			health += i * 2;
-			maxHealth += i * 2;
+			setMaxHealth();
 			vitality += i;
 		}
 		
 		public void setStatPoints(int i)
 		{
 			statpoints = i;
+		}
+		
+		public void setLanguage(EnumLang el)
+		{
+			language = el;
+		}
+		
+		public EnumLang getLanguage()
+		{
+			return language;
+		}
+		
+		public void setDamage(double d)
+		{
+			damage = d;
+		}
+		
+		public double getDamage()
+		{
+			return damage;
 		}
 	}
 }

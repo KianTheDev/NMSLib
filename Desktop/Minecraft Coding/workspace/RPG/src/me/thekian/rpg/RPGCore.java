@@ -1,6 +1,7 @@
 package me.thekian.rpg;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,9 +19,13 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.craftbukkit.v1_9_R1.CraftWorld;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Creature;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -33,6 +38,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.LeavesDecayEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -45,6 +51,7 @@ import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
+import org.bukkit.event.entity.ItemMergeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -53,7 +60,9 @@ import org.bukkit.event.player.PlayerChatEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -74,25 +83,32 @@ import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 
+import me.thekian.cstmobs.CustomEntityEvilPig;
+import me.thekian.cstmobs.CustomEntityType;
+import me.thekian.cstmobs.CustomEntityZombie;
+import me.kian.titles.TitleMain;
+import me.thekian.cstmobs.CustomEntityEvilCow;
 import me.thekian.data.LoadFileData;
+import me.thekian.data.MobList;
 import me.thekian.data.Mobs;
 import me.thekian.data.PlayerClass;
-import me.thekian.data.Mobs.CBattleShop;
-import me.thekian.data.Mobs.CCitizen;
-import me.thekian.data.Mobs.CChemShop;
 import me.thekian.data.Mobs.CMob;
-import me.thekian.data.Mobs.CMonster;
 import me.thekian.data.Mobs.CNPC;
-import me.thekian.data.Mobs.CThug;
+import me.thekian.data.Mobs.MobData;
 import me.thekian.data.Players;
 import me.thekian.data.Players.CAccount;
 import me.thekian.data.Players.CCharacter;
 import me.thekian.data.Players.CPlayer;
 import me.thekian.data.Race;
 import me.thekian.rpg.Shops;
+import me.thekian.util.NPCs;
+import me.thekian.util.Particles;
+import me.thekian.util.ReflUtil;
 import me.thekian.weapon.Weapons;
 import me.thekian.weapon.Weapons.ProjectileData;
+import net.minecraft.server.v1_9_R1.EntityInsentient;
 import me.thekian.items.CItem;
+import me.thekian.items.ItemType;
 import me.thekian.items.Items;
 
 public class RPGCore extends JavaPlugin implements Listener
@@ -108,31 +124,49 @@ public class RPGCore extends JavaPlugin implements Listener
 	List<Entity> entities;
 	String pluginPath;
 	Items items = new Items();
+	Particles particles = new Particles();
+	NPCs npcs = new NPCs();
+	MobList mobList = new MobList();
+	SecondaryEvents secEv = new SecondaryEvents();
 	
 	@Override
 	public void onEnable()
 	{
+		CustomEntityType.registerEntities();
 		plugin = this;
 		guns.plugin = plugin;
-		System.out.println("Server plugin location: " + plugin.getDataFolder().getAbsolutePath());
 		String s = "";
 		for(int i = 0; i < plugin.getDataFolder().getAbsolutePath().indexOf(plugin.getDataFolder().getName()); i++)
 		{
 			s += plugin.getDataFolder().getAbsolutePath().charAt(i);
 		}
 		pluginPath = s;
+		System.out.println("Server plugin location: " + pluginPath);
 		if(!new File(pluginPath + "playerdata").exists())
-			new File(pluginPath + "playerdata\\").mkdirs();
+			new File(pluginPath + "playerdata" + File.separator).mkdirs();
 		if(!new File(pluginPath + "inventories").exists())
-			new File(pluginPath + "inventories\\").mkdirs();
+			new File(pluginPath + "inventories" + File.separator).mkdirs();
 		if(!new File(pluginPath + "accounts").exists())
-			new File(pluginPath + "accounts\\").mkdirs();
-		guns.Initialize(plugin, items);
+			new File(pluginPath + "accounts" + File.separator).mkdirs();
 		items.initialize();
+		guns.Initialize(plugin, items);
 		loadFileData.init();
+		mobList.init();
+		shops.init(items);
+		shopSystem.init(items);
 		Bukkit.getServer().getPluginManager().registerEvents(this, this);
-		refreshEntities();
-		new BukkitRunnable()
+		Bukkit.getServer().getPluginManager().registerEvents(secEv, this);
+		secEv.setPlugin(plugin);
+		for(World w : Bukkit.getWorlds())
+		{
+			for(org.bukkit.entity.Entity e : w.getEntities())
+				if(e instanceof org.bukkit.entity.LivingEntity && !(e instanceof Player) || e instanceof Item)
+				{
+					e.remove();
+				}
+		}
+		//refreshEntities();
+		/*new BukkitRunnable()
 		{
 			
 			public void run()
@@ -143,7 +177,19 @@ public class RPGCore extends JavaPlugin implements Listener
 				}
 			}
 			
-		}.runTaskTimer(this, 20, 20);
+		}.runTaskTimer(this, 20, 20);*/
+		new BukkitRunnable()
+		{
+			
+			public void run()
+			{
+				for(CMob cm : MobDataMap.values())
+					cm.updateEnt();
+				for(CNPC cn : NPCDataMap.values())
+					cn.updateEnt();
+			}
+			
+		}.runTaskTimer(plugin, 20, 1);
 		new BukkitRunnable()
 		{
 			
@@ -153,14 +199,20 @@ public class RPGCore extends JavaPlugin implements Listener
 				{
 					for(Entity e : world.getEntities())
 					{
-						if(e instanceof Zombie)
-						{
-							Zombie z = (Zombie) e;
-							if(!(z.getTarget() instanceof Player))
+						if(e instanceof Creature)
+							if(MobDataMap.containsKey(e))
 							{
-								z.setTarget(null);
+							
+								Creature c = (Creature) e;
+								if(!(c.getTarget() instanceof Player))
+								{
+									for(Entity ent : c.getNearbyEntities(8, 8, 8))
+									{
+										if(ent instanceof Player)
+											c.setTarget((LivingEntity) ent);
+									}
+								}
 							}
-						}
 						if(e instanceof Player)
 						{
 							Player p = (Player) e;
@@ -181,11 +233,32 @@ public class RPGCore extends JavaPlugin implements Listener
 			}
 			
 		}.runTaskTimer(this, 40, 40);
+		//Health display
+		new BukkitRunnable()
+		{
+			
+			public void run()
+			{
+				for(Player p : Bukkit.getOnlinePlayers())
+				{
+					if(!(characterSelection1.contains(p.getUniqueId()) || characterSelection2.contains(p.getUniqueId()) || characterSelection3.contains(p.getUniqueId())))
+					{
+						if(PlayerDataMap.containsKey(p.getUniqueId()))
+						{
+							CPlayer cp = PlayerDataMap.get(p.getUniqueId()).getPlayerData();
+							TitleMain.getTitles().createHotbar(p, ChatColor.RED + "HP: " + cp.getHealth() + "/" + cp.getMaxHealth());
+						}
+					}
+				}
+			}
+			
+		}.runTaskTimer(this, 40, 5);
 	}
 	
 	@Override
 	public void onDisable()
 	{
+		CustomEntityType.unregisterEntities();
 		for(Player p : Bukkit.getOnlinePlayers())
 			if(PlayerDataMap.containsKey(p.getUniqueId()))
 			{
@@ -228,7 +301,7 @@ public class RPGCore extends JavaPlugin implements Listener
 	
 	public HashMap<UUID, CCharacter> PlayerDataMap = new HashMap<UUID, CCharacter>();
 	public HashMap<LivingEntity, CNPC> NPCDataMap = new HashMap<LivingEntity, CNPC>();
-	public HashMap<LivingEntity, CMonster> MobDataMap = new HashMap<LivingEntity, CMonster>();
+	public HashMap<LivingEntity, CMob> MobDataMap = new HashMap<LivingEntity, CMob>();
 	public HashMap<UUID, ArrayList<CCharacter>> AccountDataMap = new HashMap<UUID, ArrayList<CCharacter>>();
 	public ArrayList<UUID> characterSelection1 = new ArrayList<UUID>(), characterSelection2 = new ArrayList<UUID>(), characterSelection3 = new ArrayList<UUID>();;
 	
@@ -361,8 +434,8 @@ public class RPGCore extends JavaPlugin implements Listener
 				e.getDrops().clear();
 				Player p = e.getEntity().getKiller();
 				CPlayer cp = PlayerDataMap.get(p.getUniqueId()).getPlayerData();
-				CMonster cm = MobDataMap.get(e.getEntity());
-				if(cm == null)
+				//CMonster cm = MobDataMap.get(e.getEntity());
+				/*if(cm == null)
 				{
 					//nil
 				} else
@@ -390,7 +463,7 @@ public class RPGCore extends JavaPlugin implements Listener
 				{
 					cp.AddXP(100);
 					p.sendMessage(ChatColor.BLUE + "RPG> " + ChatColor.GRAY + "You got 100 XP from the skeleton!");
-				}
+				}*/
 			}
 		}
 	}
@@ -398,9 +471,17 @@ public class RPGCore extends JavaPlugin implements Listener
 	@EventHandler
 	public void onEntityDamage(EntityDamageEvent e)
 	{
-		if(e.getCause().equals(DamageCause.SUFFOCATION))
+		if(e.getDamage() == 0)
+			return;
+		if(e.getCause().equals(DamageCause.SUFFOCATION) || e.getCause().equals(DamageCause.FALL))
 		{
 			e.setCancelled(true);
+			e.setDamage(0);
+		}
+		if(e.getEntity() instanceof ArmorStand)
+		{
+			if(!((ArmorStand) e.getEntity()).isVisible())
+				e.setCancelled(true);
 		}
 		if(e.getEntity() instanceof Player)
 		{
@@ -427,7 +508,28 @@ public class RPGCore extends JavaPlugin implements Listener
 		if(e.getEntity() instanceof LivingEntity)
 		{
 			LivingEntity le = (LivingEntity) e.getEntity();
-			CMonster cm = MobDataMap.get(le);
+			if(MobDataMap.containsKey(le) && e.getCause().equals(DamageCause.LAVA))
+			{
+				CMob cm = MobDataMap.get(le);
+				//System.out.println("EntityDamageEvent damage = " + e.getDamage());
+				double d = cm.getLastDamage();
+				e.setDamage(0);
+				if(cm.getInvulnerable())
+					e.setCancelled(true);
+				else
+					cm.damage(d);
+			} else if(NPCDataMap.containsKey(le) && e.getCause().equals(DamageCause.LAVA))
+			{
+				double d = e.getDamage();
+				e.setDamage(0);
+				CNPC cn = NPCDataMap.get(le);
+				if(cn.getInvulnerable())
+					e.setCancelled(true);
+				else
+					cn.damage(d);
+			}
+			/*LivingEntity le = (LivingEntity) e.getEntity();
+			CMob cm = MobDataMap.get(le);
 			if(cm != null)
 			{
 				int damage = (int) e.getDamage();
@@ -459,45 +561,10 @@ public class RPGCore extends JavaPlugin implements Listener
 					le.setHealth(0);
 				} 
 				return;
-			}
+			}*/
 		}
 	}
-	
-	@EventHandler
-	public void onEntityRegainHealth(EntityRegainHealthEvent e)
-	{
-		if(e.getEntity() instanceof Player)
-		{
-			e.setCancelled(true);
-			new BukkitRunnable()
-			{
-				
-				public void run()
-				{
-					e.setCancelled(true);
-				}
-				
-			}.runTaskLater(plugin, 1);
-		}
-	}
-	
-	@EventHandler
-	public void onProjectileHit(ProjectileHitEvent e)
-	{
-		if(e.getEntity() instanceof Arrow)
-		{
-			new BukkitRunnable() 
-			{
-				
-				public void run()
-				{
-					e.getEntity().remove();
-				}
-				
-			}.runTaskLater(plugin, 1);
-		}
-	}
-	
+
 	@EventHandler
 	public void onEntityDamageByEntity(EntityDamageByEntityEvent e)
 	{
@@ -514,7 +581,7 @@ public class RPGCore extends JavaPlugin implements Listener
 				}
 				if(e.getEntity() instanceof LivingEntity)
 				{
-					LivingEntity le = (LivingEntity) e.getEntity();
+					/*LivingEntity le = (LivingEntity) e.getEntity();
 					CNPC cNPC = NPCDataMap.get(le);
 					if(cNPC != null)
 					{
@@ -541,16 +608,71 @@ public class RPGCore extends JavaPlugin implements Listener
 					{
 						le.setVelocity(pd.getDirection().multiply(pd.GetKB()));
 					}
+				}*/
 				}
 			}
-		}
-		if(e.getDamager() instanceof Player)
+		} else if(e.getDamager() instanceof Player)
 		{
-			return;
-		}
-		if(e.getDamager() instanceof LivingEntity)
+			Player p = (Player) e.getDamager();
+			LivingEntity le = (LivingEntity) e.getEntity();
+			if(MobDataMap.containsKey(le))
+			{
+				e.setDamage(0);
+				MobDataMap.get(le).setLastDamage(PlayerDataMap.get(p.getUniqueId()).getPlayerData().getDamage());
+				MobDataMap.get(le).setLastDamager(p);
+				MobDataMap.get(le).damage(MobDataMap.get(le).getLastDamage());
+				ArmorStand as = (ArmorStand) le.getWorld().spawnEntity(new Location(le.getWorld(), le.getLocation().getX() + ((Math.random() * 2) - 1), le.getLocation().getY() + ((Math.random() * 0.4) - 1), le.getLocation().getZ() + ((Math.random() * 2) - 1)), EntityType.ARMOR_STAND);
+				as.setVisible(false);
+				as.setGravity(false);
+				as.setCustomNameVisible(true);
+				ChatColor cc = ChatColor.RED;
+				double d = MobDataMap.get(le).getLastDamage();
+				if(d == 0)
+					cc = ChatColor.GRAY;
+				else if(d < 0)
+					cc = ChatColor.GREEN;
+				as.setCustomName(cc + "" + (int) d * -1);
+				new BukkitRunnable(){
+				
+					public void run()
+					{
+						as.setHealth(0);
+					}
+				
+				}.runTaskLater(plugin, 30);
+				//System.out.println("Damage = " + PlayerDataMap.get(p.getUniqueId()).getPlayerData().getDamage());
+				//System.out.println("Mob health = " + MobDataMap.get(le).getHealth());
+			}
+		} else if(e.getEntity() instanceof Player)
+		{
+			Player p = (Player) e.getEntity();
+			if(!PlayerDataMap.containsKey(p.getUniqueId()))
+			{
+				e.setCancelled(true);
+				return;
+			}
+			CPlayer cp = PlayerDataMap.get(p.getUniqueId()).getPlayerData();
+			double damage = e.getDamage();
+			e.setDamage(0);
+			cp.setHealth(cp.getHealth() - (int) damage);
+			if(cp.getHealth() <= 0)
+			{
+				cp.setHealth(0);
+				p.setHealth(0);
+				return;
+			}
+			double health = cp.getHealth();
+		    double maxhealth = cp.getMaxHealth();
+			p.setHealth(20 * (health/maxhealth));
+		} else if(e.getDamager() instanceof LivingEntity && e.getEntity() instanceof Player)
 		{
 			LivingEntity le = (LivingEntity) e.getDamager();
+			Player p = (Player) e.getEntity();
+			if(MobDataMap.containsKey(le))
+			{
+				e.setDamage(MobDataMap.get(le).getDamage());
+			}
+			/*LivingEntity le = (LivingEntity) e.getDamager();
 			CMonster cm = MobDataMap.get(le);
 			if(cm == null)
 			{
@@ -566,7 +688,7 @@ public class RPGCore extends JavaPlugin implements Listener
 			} else
 			{
 				return;
-			}
+			}*/
 		}
 	}
 	
@@ -579,7 +701,7 @@ public class RPGCore extends JavaPlugin implements Listener
 		}
 	}
 	
-	@EventHandler
+	/*@EventHandler
 	public void onEntityTargetChange(EntityTargetLivingEntityEvent e)
 	{
 		if(e.getEntity() instanceof Zombie)
@@ -597,25 +719,7 @@ public class RPGCore extends JavaPlugin implements Listener
 				}.runTaskLater(plugin, 1);
 			} 
 		}
-	}
-	
-	@EventHandler
-	public void onPlayerFoodLevelChange(FoodLevelChangeEvent e)
-	{
-		e.setCancelled(true);
-		new BukkitRunnable()
-		{
-			public void run()
-			{
-				e.setFoodLevel(20);
-				if(e.getEntity() instanceof Player)
-				{
-					Player p = (Player) e.getEntity();
-					p.setFoodLevel(20);
-				}
-			}
-		}.runTaskLater(plugin, 1);
-	}
+	}*/
 	
 	@EventHandler
 	public void onPlayerDeath(PlayerDeathEvent e)
@@ -635,65 +739,36 @@ public class RPGCore extends JavaPlugin implements Listener
 		}.runTaskLater(plugin, 1);
 	}
 	
-	@EventHandler
-	public void onCreatureSpawn(CreatureSpawnEvent e)
+	public boolean spawnCMob(int id, Location loc)
 	{
-		new BukkitRunnable()
-		{
-			public void run()
-			{
-				if(e.getSpawnReason().equals(SpawnReason.EGG))
-				{
-					e.setCancelled(true);
-					e.getEntity().remove();
-				}
-				if(e.getSpawnReason().equals(SpawnReason.NATURAL))
-				{
-					e.setCancelled(true);
-					e.getEntity().remove();
-				}
-				if(e.getEntityType().equals(EntityType.ENDERMITE))
-				{
-					e.setCancelled(true);
-					e.getEntity().remove();
-				}
-				if(e.getEntity() instanceof Zombie)
-				{
-					Zombie z = (Zombie) e.getEntity();
-					CThug ct = mobs.new CThug();
-					ct.OutfitEntity(z);
-					MobDataMap.put(z, ct);
-				}
-				if(e.getEntity() instanceof Villager)
-				{
-					Villager v = (Villager) e.getEntity();
-					if(v.getProfession().equals(Profession.BLACKSMITH))
-					{
-						CBattleShop cbs = mobs.new CBattleShop();
-						NPCDataMap.put(v, cbs);
-						CNPC cNPC = NPCDataMap.get(v);
-					}
-					if(v.getProfession().equals(Profession.FARMER) ||v.getProfession().equals(Profession.BUTCHER))
-					{
-						CCitizen cc = mobs.new CCitizen();
-						NPCDataMap.put(v, cc);
-					}
-					if(v.getProfession().equals(Profession.PRIEST))
-					{
-						CChemShop ccs = mobs.new CChemShop();
-						NPCDataMap.put(v, ccs);
-					}
-				}
-			}
-		}.runTaskLater(plugin, 1);
+		if(id >= mobList.getMobList().size())
+			return false;
+		CMob cm = mobList.getMobList().get(id).createCMob(loc);
+		MobDataMap.put(cm.getEntity(), cm);
+		return true;
+	}
+	
+	public boolean spawnCNPC(int id, Location loc)
+	{
+		if(id >= mobList.getNPCList().size())
+			return false;
+		CNPC cn = mobList.getNPCList().get(id).createCNPC(loc);
+		NPCDataMap.put(cn.getEntity(), cn);
+		return true;
 	}
 	
 	@EventHandler
 	public void onPlayerInteractEntity(PlayerInteractEntityEvent e)
 	{
 		if(e.getRightClicked() instanceof Villager)
+			e.setCancelled(true);
+		if(NPCDataMap.containsKey(e.getRightClicked()))
 		{
-			Villager v = (Villager) e.getRightClicked();
+			CNPC cn = NPCDataMap.get(e.getRightClicked());
+			cn.greet(e.getPlayer());
+			if(cn.getShopkeeper())
+				shops.createShop(cn.getShopType(), e.getPlayer());
+			/*Villager v = (Villager) e.getRightClicked();
 			e.setCancelled(true);
 			CNPC cNPC = NPCDataMap.get(v);
 			if(cNPC == null)
@@ -712,16 +787,46 @@ public class RPGCore extends JavaPlugin implements Listener
 			{
 				CChemShop ccs = (CChemShop) NPCDataMap.get(v);
 				shops.createShopTwo(Bukkit.getServer().createInventory(null, ccs.getInvSize(), "Shop"), e.getPlayer());
-			}
+			}*/
 		}
 	}
 	
+	@EventHandler
+	public void onPlayerSelectItem(PlayerItemHeldEvent e)
+	{
+		new BukkitRunnable(){
+
+			public void run()
+			{
+				Player p = e.getPlayer();
+				if(!PlayerDataMap.containsKey(p.getUniqueId()))
+					return;
+				if(p.getItemInHand() == null)
+					return;
+				if(items.getItemID(p.getItemInHand()) == -1)
+					return;
+				if(items.getItemDamage(p.getItemInHand()) == -1)
+					PlayerDataMap.get(p.getUniqueId()).getPlayerData().setDamage(1);
+				else
+					if(items.getItems().get(items.getItemID(p.getItemInHand())).getType().equals(ItemType.WEAPON_MELEE))
+						PlayerDataMap.get(p.getUniqueId()).getPlayerData().setDamage((items.getItemDamage(p.getItemInHand())));
+			}
+
+		}.runTaskLater(plugin, 2);
+	}
+
 	@EventHandler
 	public void onPlayerInteract(PlayerInteractEvent e)
 	{
 		Player p = e.getPlayer();
 		if(p.getItemInHand().getType().equals(Material.EYE_OF_ENDER))
 			e.setCancelled(true);
+		if(e.getClickedBlock() != null)
+		{
+			org.bukkit.block.Block cb = e.getClickedBlock();
+			if(!p.isOp() && (cb.getType().equals(Material.TRAP_DOOR) || cb.getType().equals(Material.STONE_BUTTON) || cb.getType().equals(Material.ITEM_FRAME)))
+				e.setCancelled(true);
+		}
 		if(e.getAction().equals(Action.RIGHT_CLICK_AIR) || e.getAction().equals(Action.RIGHT_CLICK_BLOCK))
 		{
 			ItemStack i = e.getPlayer().getItemInHand();
@@ -755,6 +860,28 @@ public class RPGCore extends JavaPlugin implements Listener
 		}
 	}
 	
+	private void initPlayerInventory(Player p)
+	{
+		final Player player = p;
+		characterSelection3.remove(p.getUniqueId());
+		PlayerDataMap.get(p.getUniqueId()).setCoords(p.getWorld().getSpawnLocation().getX(), p.getWorld().getSpawnLocation().getY(), p.getWorld().getSpawnLocation().getZ());
+		PlayerDataMap.get(p.getUniqueId()).loadData(p, PlayerDataMap.get(p.getUniqueId()).getPlayerData(), plugin);
+		CPlayer cp = PlayerDataMap.get(p.getUniqueId()).getPlayerData();
+		ItemStack itemStack = new ItemStack(Material.NETHER_STAR);
+		ItemMeta im = itemStack.getItemMeta();
+		im.setDisplayName(ChatColor.BLUE + "Stats");
+		itemStack.setItemMeta(im);
+		p.getInventory().setItem(8, itemStack);
+		if(cp.getPlayerClass().equals(PlayerClass.ENGINEER))
+			p.getInventory().addItem(items.getItems().get(6).getItem(false));
+		else if(cp.getPlayerClass().equals(PlayerClass.FIGHTER))
+			p.getInventory().addItem(items.getItems().get(3).getItem(false));
+		else if(cp.getPlayerClass().equals(PlayerClass.MAGICIAN))
+			p.getInventory().addItem(items.getItems().get(5).getItem(false));
+		else if(cp.getPlayerClass().equals(PlayerClass.RANGER))
+			p.getInventory().addItem(items.getItems().get(4).getItem(false));
+	}
+	
 	@EventHandler
 	public void onInventoryClick(InventoryClickEvent e)
 	{
@@ -783,12 +910,6 @@ public class RPGCore extends JavaPlugin implements Listener
 		ItemStack is = e.getCurrentItem();
 		if((is.getType().equals(Material.NETHER_STAR)) && (is.getItemMeta().getDisplayName().equalsIgnoreCase(ChatColor.BLUE + "Stats")))
 		{
-			e.setCancelled(true);
-			return;
-		} else if(is.getType().equals(Material.SKULL_ITEM) && (is.getItemMeta().getDisplayName().equalsIgnoreCase(ChatColor.BLUE + "Cow Head") || is.getItemMeta().getDisplayName().equalsIgnoreCase(ChatColor.BLUE + "Pig Head")))
-		{
-			e.setCancelled(true);
-			p.sendMessage(ChatColor.DARK_RED + "You may not remove your head!");
 			p.closeInventory();
 			return;
 		}
@@ -852,14 +973,7 @@ public class RPGCore extends JavaPlugin implements Listener
 				PlayerDataMap.get(p.getUniqueId()).getPlayerData().setRace(Race.HUMAN);
 				if(characterSelection3.contains(p.getUniqueId()))
 				{
-					characterSelection3.remove(p.getUniqueId());
-					PlayerDataMap.get(p.getUniqueId()).setCoords(p.getWorld().getSpawnLocation().getX(), p.getWorld().getSpawnLocation().getY(), p.getWorld().getSpawnLocation().getZ());
-					PlayerDataMap.get(p.getUniqueId()).loadData(p, PlayerDataMap.get(p.getUniqueId()).getPlayerData(), plugin);
-					ItemStack itemStack = new ItemStack(Material.NETHER_STAR);
-					ItemMeta im = itemStack.getItemMeta();
-					im.setDisplayName(ChatColor.BLUE + "Stats");
-					itemStack.setItemMeta(im);
-					p.getInventory().setItem(8, itemStack);
+					initPlayerInventory(p);
 				}
 				p.closeInventory();
 			} else if(e.getCurrentItem().getItemMeta().getDisplayName().equals(ChatColor.BLUE + "Cow"))
@@ -870,27 +984,14 @@ public class RPGCore extends JavaPlugin implements Listener
 				
 					public void run()
 					{
-						ItemStack head = items.getItems().get(1).getItem();
-						SkullMeta sm = (SkullMeta) head.getItemMeta();
-						sm.setOwner("MHF_Cow");
-						head.setItemMeta(sm);
-						player.getInventory().setHelmet(head);
-						player.getInventory().addItem(head);
-						player.getInventory().addItem(items.getItems().get(4).getItem());
-						player.getInventory().addItem(items.getItems().get(6).getItem());
+						player.getInventory().addItem(items.getItems().get(4).getItem(false));
+						player.getInventory().addItem(items.getItems().get(6).getItem(false));
 					}
 					
 				}.runTaskLater(plugin, 1);
 				if(characterSelection3.contains(p.getUniqueId()))
 				{
-					characterSelection3.remove(p.getUniqueId());
-					PlayerDataMap.get(p.getUniqueId()).setCoords(p.getWorld().getSpawnLocation().getX(), p.getWorld().getSpawnLocation().getY(), p.getWorld().getSpawnLocation().getZ());
-					PlayerDataMap.get(p.getUniqueId()).loadData(p, PlayerDataMap.get(p.getUniqueId()).getPlayerData(), plugin);
-					ItemStack itemStack = new ItemStack(Material.NETHER_STAR);
-					ItemMeta im = itemStack.getItemMeta();
-					im.setDisplayName(ChatColor.BLUE + "Stats");
-					itemStack.setItemMeta(im);
-					p.getInventory().setItem(8, itemStack);
+					initPlayerInventory(p);
 				}
 				p.closeInventory();
 			} else if(e.getCurrentItem().getItemMeta().getDisplayName().equals(ChatColor.BLUE + "Pig"))
@@ -902,27 +1003,14 @@ public class RPGCore extends JavaPlugin implements Listener
 				
 					public void run()
 					{
-						ItemStack head = items.getItems().get(2).getItem();
-						SkullMeta sm = (SkullMeta) head.getItemMeta();
-						sm.setOwner("MHF_Pig");
-						head.setItemMeta(sm);
-						player.getInventory().setHelmet(head);
-						player.getInventory().addItem(head);
-						player.getInventory().addItem(items.getItems().get(4).getItem());
-						player.getInventory().addItem(items.getItems().get(6).getItem());
+						player.getInventory().addItem(items.getItems().get(4).getItem(false));
+						player.getInventory().addItem(items.getItems().get(6).getItem(false));
 					}
 					
 				}.runTaskLater(plugin, 1);
 				if(characterSelection3.contains(p.getUniqueId()))
 				{
-					characterSelection3.remove(p.getUniqueId());
-					PlayerDataMap.get(p.getUniqueId()).setCoords(p.getWorld().getSpawnLocation().getX(), p.getWorld().getSpawnLocation().getY(), p.getWorld().getSpawnLocation().getZ());
-					PlayerDataMap.get(p.getUniqueId()).loadData(p, PlayerDataMap.get(p.getUniqueId()).getPlayerData(), plugin);
-					ItemStack itemStack = new ItemStack(Material.NETHER_STAR);
-					ItemMeta im = itemStack.getItemMeta();
-					im.setDisplayName(ChatColor.BLUE + "Stats");
-					itemStack.setItemMeta(im);
-					p.getInventory().setItem(8, itemStack);
+					initPlayerInventory(p);
 				}
 				p.closeInventory();
 			}
@@ -1187,26 +1275,6 @@ public class RPGCore extends JavaPlugin implements Listener
 		}
 	}
 	
-	@EventHandler
-	public void onWeatherChange(WeatherChangeEvent e)
-	{
-		e.setCancelled(true);
-	}
-	
-	@EventHandler
-	public void onBlockPlace(BlockPlaceEvent e)
-	{
-		if(!e.getPlayer().isOp())
-			e.setCancelled(true);
-	}
-	
-	@EventHandler
-	public void onBlockBreak(BlockBreakEvent e)
-	{
-		if(!e.getPlayer().isOp())
-			e.setCancelled(true);
-	}
-	
 	public static boolean isNumeric(String str)
 	{
 		return str.matches("-?\\d+(\\.\\d+)?");
@@ -1284,6 +1352,11 @@ public class RPGCore extends JavaPlugin implements Listener
 			im.setDisplayName(ChatColor.GREEN + "HP: " + ChatColor.YELLOW + cp.getHealth() + "/" + cp.getMaxHealth() );
 			is.setItemMeta(im);
 			inv.setItem(16, is);
+			is.setType(Material.BOW);
+			im = is.getItemMeta();
+			im.setDisplayName(ChatColor.GRAY + "Damage: " + cp.getDamage());
+			is.setItemMeta(im);
+			inv.setItem(13, is);
 			is.setType(Material.IRON_SWORD);
 			im = is.getItemMeta();
 			im.setDisplayName(ChatColor.GREEN + "Class: " + ChatColor.YELLOW + cp.getPlayerClass().toString2());
@@ -1459,6 +1532,10 @@ public class RPGCore extends JavaPlugin implements Listener
 	{
 		if(cmd.getName().equalsIgnoreCase("help"))
 		{
+			if(sender instanceof Player)
+			{
+				Player p = (Player) sender;
+			}
 			if(!sender.isOp())
 				if(sender instanceof Player)
 				{
@@ -1509,7 +1586,7 @@ public class RPGCore extends JavaPlugin implements Listener
 				try
 				{
 					int i = (int) Integer.parseInt(args[1]);
-					PlayerDataMap.get(p.getUniqueId()).getPlayerData().AddXP(i);
+					PlayerDataMap.get(p.getUniqueId()).getPlayerData().AddXP(i, PlayerDataMap.get(p.getUniqueId()).getPlayerData().getLevel());
 				} catch(Exception e)
 				{
 					sender.sendMessage(ChatColor.RED + "Inappropriate arguments.");
@@ -1539,7 +1616,7 @@ public class RPGCore extends JavaPlugin implements Listener
 						sender.sendMessage(ChatColor.RED + "Invalid ID.");
 					else
 					{
-						p.getInventory().addItem(items.getItems().get(i).getItem());
+						p.getInventory().addItem(items.getItems().get(i).getItem(false));
 					}
 				} catch(Exception e)
 				{
@@ -1549,9 +1626,79 @@ public class RPGCore extends JavaPlugin implements Listener
 			{
 				sender.sendMessage(ChatColor.RED + "Inappropriate arguments.");
 			}
+		} else if(cmd.getName().equalsIgnoreCase("spawnMob"))
+		{
+			if(!sender.isOp() || !(sender instanceof Player))
+			{
+				return true;
+			}
+			Player p = (Player) sender;
+			if(args.length == 1)
+			{
+				try
+				{
+					int i = (int) Integer.parseInt(args[0]);
+					boolean b = spawnCMob(i, p.getLocation());
+					if(!b)
+						sender.sendMessage(ChatColor.RED + "Inappropriate ID.");
+				} catch(Exception e)
+				{
+					sender.sendMessage(ChatColor.RED + "Inappropriate arguments.");
+					//e.printStackTrace();
+				}
+			} else
+			{
+				sender.sendMessage(ChatColor.RED + "Inappropriate arguments.");
+			}
+		} else if(cmd.getName().equalsIgnoreCase("spawnNPC"))
+		{
+			if(!sender.isOp() || !(sender instanceof Player))
+			{
+				return true;
+			}
+			Player p = (Player) sender;
+			if(args.length == 1)
+			{
+				try
+				{
+					int i = (int) Integer.parseInt(args[0]);
+					boolean b = spawnCNPC(i, p.getLocation());
+					if(!b)
+						sender.sendMessage(ChatColor.RED + "Inappropriate ID.");
+				} catch(Exception e)
+				{
+					sender.sendMessage(ChatColor.RED + "Inappropriate arguments.");
+					//e.printStackTrace();
+				}
+			} else
+			{
+				sender.sendMessage(ChatColor.RED + "Inappropriate arguments.");
+			}
+		} else if(cmd.getName().equalsIgnoreCase("killall"))
+		{
+			if(!sender.isOp())
+				return false;
+			int i = 0;
+			for(World w : Bukkit.getWorlds())
+			{
+				for(org.bukkit.entity.Entity e : w.getEntities())
+					if(e instanceof org.bukkit.entity.LivingEntity && !(e instanceof Player))
+					{
+						e.remove();
+						i++;
+					}
+			}
+			MobDataMap.clear();
+			NPCDataMap.clear();
+			sender.sendMessage("Cleared " + i + " entities.");
+		} else if(cmd.getName().equalsIgnoreCase("test"))
+		{
+			if(!sender.isOp() || !(sender instanceof Player))
+			{
+				return true;
+			}
+				Player p = (Player) sender;
 		}
 		return true;
 	}
 }
-
-

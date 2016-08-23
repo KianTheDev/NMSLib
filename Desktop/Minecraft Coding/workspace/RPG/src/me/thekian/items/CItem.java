@@ -33,7 +33,7 @@ public class CItem
 		undroppable = u;
 	}
 	
-	public ItemStack getItem()
+	public ItemStack getItem(boolean b)
 	{
 		ItemStack is = new ItemStack(material);
 		if(material.equals(Material.AIR))
@@ -53,10 +53,16 @@ public class CItem
 			im.setLore(Arrays.asList("Defense: " + effect, "Item ID: " + id + ":" + data, ChatColor.RED + "Unremovable"));
 			is.setDurability((short) 3);
 			is.setItemMeta(im);
-		} else
+		} else if(!b)
 		{
 			ItemMeta im = is.getItemMeta();
 			im.setDisplayName(ChatColor.GRAY + name);
+			im.setLore(Arrays.asList("Item Type: " + type.toString2(), itemEffect.toString2() + ": " + effect, "Value: " + cost, "Item ID: " + id + ":" + data));
+			is.setItemMeta(im);
+		} else
+		{
+			ItemMeta im = is.getItemMeta();
+			im.setDisplayName(ChatColor.BOLD + "" + ChatColor.DARK_PURPLE + "PURCHASE ITEM: " + ChatColor.RESET + ChatColor.GRAY + name);
 			im.setLore(Arrays.asList("Item Type: " + type.toString2(), itemEffect.toString2() + ": " + effect, "Value: " + cost, "Item ID: " + id + ":" + data));
 			is.setItemMeta(im);
 		}

@@ -17,3 +17,15 @@ commands:
     help:
         usage: /<command>
         description: List of usable commands.
+    spawnMob:
+        usage: /<command> <id>
+        description: Spawns a mob.
+    spawnNPC:
+        usage: /<command> <id>
+        description: Spawns an NPC.
+    killall:
+        usage: /<command>
+        description: Clears all living entities.
+    test:
+        usage: /<command>
+        description: Tests current MMO testing stuffness.
