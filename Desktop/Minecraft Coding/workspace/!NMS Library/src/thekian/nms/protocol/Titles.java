@@ -37,6 +37,7 @@ public class Titles
 	
 	public static Object createHotbarPacket(String s) 
 	{
+		//net.minecraft.server.v1_11_R1.PacketPlayOutChat
 		//Original: PacketPlayOutChat packet = new PacketPlayOutChat(ChatSerializer.a("{\"text\":\"" + s + "\"}"), (byte) 2);
 		try 
 		{
